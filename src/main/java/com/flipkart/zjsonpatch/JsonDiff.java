@@ -48,7 +48,7 @@ public class JsonDiff {
      * This method merge 2 diffs ( remove then add, or vice versa ) with same value into one Move operation,
      * all the core logic resides here only
      */
-    private static void compactDiffs(List<Diff> diffs) {
+    protected static void compactDiffs(List<Diff> diffs) {
         for (int i = 0; i < diffs.size(); i++) {
             Diff diff1 = diffs.get(i);
 
@@ -86,7 +86,7 @@ public class JsonDiff {
 
     //Note : only to be used for arrays
     //Finds the longest common Ancestor ending at Array
-    private static void computeRelativePath(List<Object> path, int startIdx, int endIdx, List<Diff> diffs) {
+    protected static void computeRelativePath(List<Object> path, int startIdx, int endIdx, List<Diff> diffs) {
         List<Integer> counters = new ArrayList<Integer>();
 
         resetCounters(counters, path.size());
@@ -101,13 +101,13 @@ public class JsonDiff {
         updatePathWithCounters(counters, path);
     }
 
-    private static void resetCounters(List<Integer> counters, int size) {
+    static void resetCounters(List<Integer> counters, int size) {
         for (int i = 0; i < size; i++) {
             counters.add(0);
         }
     }
 
-    private static void updatePathWithCounters(List<Integer> counters, List<Object> path) {
+    static void updatePathWithCounters(List<Integer> counters, List<Object> path) {
         for (int i = 0; i < counters.size(); i++) {
             int value = counters.get(i);
             if (value != 0) {
@@ -117,7 +117,7 @@ public class JsonDiff {
         }
     }
 
-    private static void updatePath(List<Object> path, Diff pseudo, List<Integer> counters) {
+    static void updatePath(List<Object> path, Diff pseudo, List<Integer> counters) {
         //find longest common prefix of both the paths
 
         if (pseudo.getPath().size() <= path.size()) {
@@ -298,7 +298,7 @@ public class JsonDiff {
         }
     }
 
-    private static List<Object> getPath(List<Object> path, Object key) {
+    static List<Object> getPath(List<Object> path, Object key) {
         List<Object> toReturn = new ArrayList<Object>();
         toReturn.addAll(path);
         toReturn.add(key);
