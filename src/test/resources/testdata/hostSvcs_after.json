@@ -2032,7 +2032,7 @@
 			"state_type": "hard",
 			"name": "Disk: /var/log/opsview/",
 			"current_check_attempt": "1",
-			"output": "DISK OK - free space: / 22698 MB (88% inode=95%):",
+			"output": "DISK ERROR",
 			"state": "ok",
 			"service_object_id": "142",
 			"unhandled": "0",

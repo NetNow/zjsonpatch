@@ -13,6 +13,8 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.slf4j.Logger;
@@ -25,23 +27,24 @@ public class JsonPathDiff {
     
     public static final String DEFAULT_KEY = "DEFAULT";
     public static final EncodePathFunction ENCODE_PATH_FUNCTION = new EncodePathFunction();
-
+    //private static ExecutorService executor = Executors.newScheduledThreadPool(20);
+    
     private final static class EncodePathFunction implements Function<Object, String> {
         @Override
         public String apply(Object object) {
-            String path = object.toString(); // see http://tools.ietf.org/html/rfc6901#section-4
+            String path = object.toString();
             return path;
-           // return path.replaceAll("~", "~0").replaceAll("/", "~1");
         }
     }
 
     public static JsonNode asJson(final JsonNode source, final JsonNode target, Map config, boolean setChangedValue) throws Exception {
         final List<Diff> diffs = new ArrayList<Diff>();
-        List<Object> path = new LinkedList<Object>();
+        LinkedList<Object> path = new LinkedList<Object>();
+        LinkedList<Object> pathStack = new LinkedList<Object>();
         /**
          * generating diffs in the order of their occurrence
          */
-        generateDiffs(diffs, path, source, target, config);
+        generateDiffs(diffs, path, pathStack, source, target, config);
         
         return getJsonNodes(diffs, setChangedValue);
     }
@@ -83,17 +86,17 @@ public class JsonPathDiff {
         return str.toString();
     }
 
-    private static void generateDiffs(List<Diff> diffs, List<Object> path, JsonNode source, JsonNode target, Map config) throws Exception {
+    private static void generateDiffs(List<Diff> diffs, List<Object> path, LinkedList<Object> pathStack, JsonNode source, JsonNode target, Map config) throws Exception {
         if (!source.equals(target)) {
             final NodeType sourceType = NodeType.getNodeType(source);
             final NodeType targetType = NodeType.getNodeType(target);
 
             if (sourceType == NodeType.ARRAY && targetType == NodeType.ARRAY) {
                 //both are arrays
-                compareArray(diffs, path, source, target, config);
+                compareArray(diffs, path, pathStack, source, target, config);
             } else if (sourceType == NodeType.OBJECT && targetType == NodeType.OBJECT) {
                 //both are json
-                compareObjects(diffs, path, source, target, config);
+                compareObjects(diffs, path, pathStack, source, target, config);
             } else {
                 //can be replaced
                 diffs.add(Diff.generateDiff(Operation.REPLACE, path, target));
@@ -101,35 +104,132 @@ public class JsonPathDiff {
         }
     }    
 
-    private static void compareArray(List<Diff> diffs, List<Object> path, JsonNode source, JsonNode target, Map config) throws Exception {
-       
-        String arrKey = getArrayKey(config, path);
+    private static void compareArray(List<Diff> diffs, List<Object> path, 
+                                     LinkedList<Object> pathStack, 
+                                     JsonNode source, JsonNode target, 
+                                     Map config) throws Exception {
+        //log.debug("PathCurrent = " + path.get(path.size()-1));
+        String arrKey = getArrayKey(config, pathStack);
         Map<String,JsonNode> mapSource = jsonArrayToMap(config, arrKey, source);
-        Map<String,JsonNode> mapTarget = jsonArrayToMap(config, arrKey, target);
-        
+        Map<String,JsonNode> mapTarget =  jsonArrayToMap(config, arrKey, target);
+       
         Collection<String> removed = CollectionUtils.subtract(mapSource.keySet(), mapTarget.keySet());
-        Collection<String> added = CollectionUtils.subtract(mapTarget.keySet(), mapSource.keySet());
-        
+       
         for (String key : removed) {
-            List<Object> currPath = JsonDiff.getPath(path, getArrayPath(arrKey,key));
-            JsonNode srcNode = (JsonNode)mapSource.get(key);
+            List<Object> currPath = getPath(path, getArrayPath(arrKey,key));
+            JsonNode srcNode = mapSource.get(key);
             diffs.add(Diff.generateDiff(Operation.REMOVE, currPath, srcNode));
         }
-        
+
+        final Collection<String> added = CollectionUtils.subtract(mapTarget.keySet(), mapSource.keySet());
+      
         for (String key : added) {
-            List<Object> currPath = JsonDiff.getPath(path, getArrayPath(arrKey,key));
-            JsonNode targetNode = (JsonNode)mapTarget.get(key);
+            List<Object> currPath = getPath(path, getArrayPath(arrKey,key));
+            JsonNode targetNode = mapTarget.get(key);
             diffs.add(Diff.generateDiff(Operation.ADD, currPath, targetNode));
-        }
-        
+        }     
+                        
         Collection<String> remaining = CollectionUtils.subtract(mapTarget.keySet(),added);
         for (String key : remaining) {
             JsonNode src = mapSource.get(key);
             JsonNode targ = mapTarget.get(key);
-            generateDiffs(diffs, path, src, targ, config);
+            List<Object> currPath = getPath(path, getArrayPath(arrKey,key));
+            generateDiffs(diffs, currPath, pathStack, src, targ, config);
         }
     }
+    
+    // TODO Threaded version of compareArray (must ensure sync list is used), but SLOWER than single thread version above. 
+    // May be useful with huge datasets later on
+//    private static void compareArray(final List<Diff> diffs, final List<Object> path, 
+//                                     final LinkedList<Object> pathStack, 
+//                                     final JsonNode source, final JsonNode target, 
+//                                     final Map config) throws Exception {
+//
+//        
+//        //log.debug("PathCurrent = " + path.get(path.size()-1));
+//        final String arrKey = getArrayKey(config, pathStack);
+//        Future<Map<String,JsonNode>> mapSourceFuture = executor.submit(new Callable<Map<String,JsonNode>>()
+//        {
+//            @Override
+//            public Map<String,JsonNode> call() throws Exception
+//            {
+//                return jsonArrayToMap(config, arrKey, source);
+//            }
+//        });
+//        Future<Map<String,JsonNode>> mapTargetFuture = executor.submit(new Callable<Map<String,JsonNode>>()
+//           {
+//               @Override
+//               public Map<String,JsonNode> call() throws Exception
+//               {
+//                   return jsonArrayToMap(config, arrKey, target);
+//               }
+//        });
+//        
+//        final Map<String,JsonNode> mapSource = mapSourceFuture.get();
+//        final Map<String,JsonNode> mapTarget = mapTargetFuture.get();
+//        
+//        Future<List<Diff>> futureRemoved = executor.submit(new Callable<List<Diff>>()
+//        {
+//            @Override
+//            public List<Diff> call() throws Exception
+//            {
+//                Collection<String> removed = CollectionUtils.subtract(mapSource.keySet(), mapTarget.keySet());
+//               // List<Diff> diffsOut = new ArrayList<Diff>();
+//                for (String key : removed) {
+//                    List<Object> currPath = getPath(path, getArrayPath(arrKey,key));
+//                    JsonNode srcNode = mapSource.get(key);
+//                    diffs.add(Diff.generateDiff(Operation.REMOVE, currPath, srcNode));
+//                }
+//                return null;
+//            }
+//        });
+//        
+//       
+//        Future<List<Diff>> futureAdded = executor.submit(new Callable<List<Diff>>()
+//        {
+//            @Override
+//            public List<Diff> call() throws Exception
+//            {
+//                final Collection<String> added = CollectionUtils.subtract(mapTarget.keySet(), mapSource.keySet());
+//                
+//                Future<List<Diff>> futureAdding = executor.submit(new Callable<List<Diff>>()
+//                {
+//                    @Override
+//                    public List<Diff> call() throws Exception {
+//                       // List<Diff> diffsAdded = new ArrayList<Diff>();
+//                        for (String key : added) {
+//                            List<Object> currPath = getPath(path, getArrayPath(arrKey,key));
+//                            JsonNode targetNode = mapTarget.get(key);
+//                            diffs.add(Diff.generateDiff(Operation.ADD, currPath, targetNode));
+//                        }
+//                        return null;
+//                    }
+//                    
+//                });
+//                                
+//                Collection<String> remaining = CollectionUtils.subtract(mapTarget.keySet(),added);
+//
+//                for (String key : remaining) {
+//                    JsonNode src = mapSource.get(key);
+//                    JsonNode targ = mapTarget.get(key);
+//                    List<Object> currPath = getPath(path, getArrayPath(arrKey,key));
+//                    generateDiffs(diffs, currPath, pathStack, src, targ, config);
+//                }
+//                futureAdding.get();
+//                return null;
+//            }
+//        });
+//        
+//        futureRemoved.get();
+//        futureAdded.get();
+//    }
 
+    static List<Object> getPath(List<Object> path, Object key) {
+        List<Object> newList = new ArrayList<Object>(path);
+        newList.add(key);
+        return newList;
+    }
+    
     private static Object getArrayPath(String arrKey, String key) {
         StringBuilder str = new StringBuilder(arrKey.length() + key.length() + 16);
         str.append("[?(@.");
@@ -156,8 +256,8 @@ public class JsonPathDiff {
         return map;
     }
 
-    private static String getArrayKey(Map<String,String> config, List<Object> path) throws Exception {
-        String currentPath = getArrayNodeRepresentation(path);
+    private static String getArrayKey(Map<String,String> config, LinkedList<Object> path) throws Exception {
+        String currentPath = getPathRepresentation(path);
         String key = null;
         if (!config.containsKey(currentPath)) {
             if ((key = (String)config.get(DEFAULT_KEY)) == null) {
@@ -169,25 +269,42 @@ public class JsonPathDiff {
         return (String)config.get(currentPath);
     }
 
-    private static void compareObjects(List<Diff> diffs, List<Object> path, JsonNode source, JsonNode target, Map config) throws Exception {
+    private static String getPathRepresentation(LinkedList<Object> path) {
+        Iterator<Object> it = path.descendingIterator();
+        StringBuilder str = new StringBuilder();
+        str.append("$.");
+        
+        while (it.hasNext()) {
+            str.append(it.next());
+            if (it.hasNext()) {
+                str.append(".");
+            }
+        }
+        //log.debug("Path = " + str.toString());
+        return str.toString();
+    }
+
+    private static void compareObjects(List<Diff> diffs, List<Object> path, LinkedList<Object> pathStack, JsonNode source, JsonNode target, Map config) throws Exception {
         Iterator<String> keysFromSrc = source.fieldNames();
         while (keysFromSrc.hasNext()) {
             String key = keysFromSrc.next();
             if (!target.has(key)) {
                 //remove case
-                List<Object> currPath = JsonDiff.getPath(path, key);
+                List<Object> currPath = getPath(path, key);
                 diffs.add(Diff.generateDiff(Operation.REMOVE, currPath, source.get(key)));
                 continue;
             }
-            List<Object> currPath = JsonDiff.getPath(path, key);
-            generateDiffs(diffs, currPath, source.get(key), target.get(key), config);
+            List<Object> currPath = getPath(path, key);
+            pathStack.push(key);
+            generateDiffs(diffs, currPath, pathStack, source.get(key), target.get(key), config);
+            pathStack.pop();
         }
         Iterator<String> keysFromTarget = target.fieldNames();
         while (keysFromTarget.hasNext()) {
             String key = keysFromTarget.next();
             if (!source.has(key)) {
                 //add case
-                List<Object> currPath = JsonDiff.getPath(path, key);
+                List<Object> currPath = getPath(path, key);
                 diffs.add(Diff.generateDiff(Operation.ADD, currPath, target.get(key)));
             }
         }
