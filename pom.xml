@@ -4,7 +4,7 @@
 
 	<groupId>com.flipkart.zjsonpatch</groupId>
 	<artifactId>zjsonpatch</artifactId>
-	<version>0.2.1</version>
+	<version>0.2.1-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
 	<name>zjsonpatch</name>
@@ -121,11 +121,23 @@
 			<version>4.0</version>
 		</dependency>
 	</dependencies>
-	<distributionManagement>
+	<!-- <distributionManagement>
 		<repository>
 			<id>clojars</id>
 			<name>Clojars repository</name>
 			<url>https://clojars.org/repo</url>
 		</repository>
+	</distributionManagement>-->
+	<distributionManagement>
+		<repository>
+			<id>releases</id>
+			<name>Release Repository</name>
+			<url>http://reposerver01.int-link.com/nexus/content/repositories/releases</url>
+		</repository>
+		<snapshotRepository>
+			<id>snapshots</id>
+			<name>Snapshot Repository</name>
+			<url>http://reposerver01.int-link.com/nexus/content/repositories/snapshots</url>
+		</snapshotRepository>
 	</distributionManagement>
 </project>

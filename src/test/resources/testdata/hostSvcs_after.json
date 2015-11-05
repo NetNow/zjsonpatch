@@ -21,7 +21,7 @@
 	},
 	"list": [{
 		"icon": "server",
-		"state": "up",
+		"state": "down",
 		"summary": {
 			"ok": "1",
 			"handled": "1",

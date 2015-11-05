@@ -10,5 +10,7 @@ class Constants {
     public static String OP = "op";
     public static String VALUE = "value";
     public static String PATH = "path";
+    public static String KEY = "key";
     public static String FROM = "from";
+    public static String PATH_OBJECT = "object";
 }
