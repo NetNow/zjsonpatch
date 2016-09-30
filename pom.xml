@@ -36,8 +36,9 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>	
-		<slf4j.version>1.6.4</slf4j.version>
+		<slf4j.version>1.7.12</slf4j.version>
 		<logback.version>1.0.1</logback.version>
+		<jackson.version>2.6.3</jackson.version>
 	</properties>
 
 	<build>
@@ -91,12 +92,12 @@
 		<dependency>
 			<groupId>com.fasterxml.jackson.core</groupId>
 			<artifactId>jackson-databind</artifactId>
-			<version>2.3.2</version>
+			<version>${jackson.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.fasterxml.jackson.core</groupId>
 			<artifactId>jackson-core</artifactId>
-			<version>2.3.2</version>
+			<version>${jackson.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.google.guava</groupId>
