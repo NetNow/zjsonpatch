@@ -4,8 +4,8 @@
 
 	<groupId>com.myitops.external.com.flipkart.zjsonpatch</groupId>
 	<artifactId>com.myitops.external.zjsonpatch</artifactId>
-	<version>0.2.1.1</version>
-	<packaging>jar</packaging>
+	<version>0.2.1.2</version>
+	<packaging>bundle</packaging>
 
 	<name>zjsonpatch</name>
 	<description>Java Library to find / apply JSON Patches according to RFC 6902</description>
@@ -68,6 +68,12 @@
                     </execution>
                 </executions>
             </plugin>-->
+			<plugin>
+				<groupId>org.apache.felix</groupId>
+				<artifactId>maven-bundle-plugin</artifactId>
+				<version>3.4.0</version>
+				<extensions>true</extensions>
+			</plugin>
 		</plugins>
 	</build>
 	<dependencies>
